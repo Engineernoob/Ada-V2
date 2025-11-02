@@ -61,6 +61,17 @@ class AdaCore:
     def __init__(self):
         print(f"🧠 Loading Ada v2.0 with Phase 2 enhancements...")
         
+        # Enhanced device detection for Apple Silicon
+        if torch.backends.mps.is_available():
+            self.device = torch.device("mps")
+            print("🍎 Using Apple Silicon (MPS) GPU acceleration")
+        elif torch.cuda.is_available():
+            self.device = torch.device("cuda")
+            print("🚀 Using CUDA GPU acceleration")
+        else:
+            self.device = torch.device("cpu")
+            print("💻 Using CPU")
+        
         # Load base language model
         print(f"📚 Loading base model: {BASE_MODEL}")
         try:
@@ -70,10 +81,15 @@ class AdaCore:
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
                 
+            # Load model with proper device placement
+            model_dtype = torch.float16 if self.device.type in ["mps", "cuda"] else torch.float32
             self.lm = AutoModelForCausalLM.from_pretrained(
                 BASE_MODEL,
-                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+                torch_dtype=model_dtype
             )
+            self.lm.to(self.device)
+            self.lm.eval()  # Set to evaluation mode
+            
         except Exception as e:
             print(f"⚠️ Error loading model: {e}")
             print("📝 Using fallback mode...")
@@ -82,16 +98,11 @@ class AdaCore:
         
         # Initialize AdaNet for reinforcement learning
         self.head = AdaNet()
+        self.head.to(self.device)
         self.optimizer = optim.Adam(self.head.parameters(), lr=LR)
         self.rewards = []
         
-        # Device setup
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        if self.lm:
-            self.lm.to(self.device)
-        self.head.to(self.device)
-        
-        print(f"✅ AdaCore v2.0 initialized on {self.device.upper()}")
+        print(f"✅ AdaCore v2.0 initialized on {self.device.type.upper()}")
         print(f"🎭 Persona system: Ready")
         print(f"🧠 Memory system: Ready")
         print(f"🎯 Reward system: Ready")
@@ -139,12 +150,16 @@ class AdaCore:
                 full_messages, tokenize=False, add_generation_prompt=True
             )
             
+            # Tokenize and move inputs to the correct device
             inputs = self.tokenizer(
                 text_prompt, 
                 return_tensors="pt", 
                 truncation=True,
-                max_length=1024
-            ).to(self.device)
+                max_length=1024,
+                padding=True
+            )
+            # Move all tensors to device
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
             # Generate response
             with torch.no_grad():
