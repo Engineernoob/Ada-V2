@@ -1,0 +1,131 @@
+# Ada Configuration Settings
+# Phase 1 - Local Development Configuration
+
+# Neural Network Settings
+neural:
+  # Model dimensions (Phase 1 - small for fast training)
+  input_dim: 512
+  hidden_dim: 256
+  output_dim: 512
+  
+  # Training parameters
+  learning_rate: 0.001
+  epochs: 5
+  batch_size: 32
+  
+  # Model save paths
+  checkpoints_dir: "ada/storage/checkpoints"
+  model_name: "ada_core.pt"
+  
+  # Device settings (auto-detect)
+  device: "auto"  # Options: "auto", "mps", "cuda", "cpu"
+
+# Reinforcement Learning Settings
+rl:
+  epsilon: 0.1  # Exploration rate
+  gamma: 0.95   # Discount factor
+  replay_buffer_size: 1000
+  
+  # Environment settings
+  max_turns: 50
+  reward_threshold: 0.8
+
+# Database Settings
+database:
+  path: "ada/storage/conversations.db"
+  backup_enabled: true
+  max_age_days: 30  # Auto-cleanup old conversations
+  
+  # Conversation persistence
+  auto_save: true
+  batch_size: 10
+
+# Interface Settings
+interface:
+  # CLI settings
+  cli:
+    history_file: "ada/storage/cli_history.txt"
+    max_history: 100
+    
+  # Event loop settings
+  event_loop:
+    heartbeat_interval: 60  # seconds
+    
+# Voice Settings (Phase 2 placeholders)
+voice:
+  # Speech recognition (Whisper.cpp - Phase 2)
+  input:
+    sample_rate: 16000
+    device: "default"
+    language: "en"
+    
+  # Text-to-speech (Piper - Phase 2)  
+  output:
+    voice: "default"
+    speed: 1.0
+    volume: 0.8
+
+# Memory Settings
+memory:
+  # Conversation memory
+  max_conversations: 1000
+  context_length: 10
+  
+  # RL memory buffer
+  replay_buffer_size: 1000
+  
+# Reward System Settings
+reward:
+  # Rule-based rewards (Phase 1)
+  base_reward: 0.5
+  greeting_bonus: 0.2
+  length_bonus: 0.1
+  quality_threshold: 0.7
+  
+  # Penalty thresholds
+  min_response_length: 2
+  max_response_length: 50
+
+# Logging and Debug Settings
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "ada/storage/ada.log"
+  max_size_mb: 10
+  backup_count: 5
+  
+  # Console output
+  color_output: true
+  show_model_info: true
+
+# macOS Specific Settings
+macos:
+  # Apple Silicon optimizations
+  use_mps: true
+  mps_memory_fraction: 0.8
+  
+  # Path settings
+  data_dir: "~/Library/Application Support/Ada"
+  
+# Development Settings
+development:
+  # Testing
+  run_tests_on_startup: false
+  
+  # Debugging
+  save_intermediate_models: true
+  verbose_logging: false
+  
+  # Performance
+  profile_training: false
+  
+# Future Phase Settings (Phase 2+)
+future:
+  # External model integration (future)
+  use_external_models: false
+  
+  # Advanced features
+  multi_modal: false
+  personality_learning: false
+  
+  # Cloud integration (optional)
+  cloud_backup: false

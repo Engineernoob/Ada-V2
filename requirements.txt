@@ -1,2 +1,21 @@
+# Core ML and AI
 torch
+numpy
 transformers
+
+# Data processing and utilities
+# sqlite3 is built into Python
+
+# CLI and UI
+colorama
+rich
+
+# Future voice features
+sounddevice
+
+# Optional: TensorBoard for training visualization (if needed)
+# tensorboard
+
+# Future Phase 2 dependencies (stubs for now):
+# whisper-cpp
+# piper-tts
