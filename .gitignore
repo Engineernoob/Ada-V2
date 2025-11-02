@@ -1,0 +1,121 @@
+# ============================================================
+# 🧠 ADA Conversational AI - Git Ignore Template
+# Created for: Taahirah Denmark’s Ada Assistant
+# ============================================================
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+*.egg
+*.manifest
+*.spec
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# ---- IDEs / Editors ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# ---- Logs & Training Outputs ----
+logs/
+*.log
+*.out
+*.err
+nohup.out
+wandb/
+tensorboard/
+lightning_logs/
+
+# ---- Checkpoints / Model Weights ----
+storage/models/
+storage/cache/
+storage/tmp/
+*.pth
+*.ckpt
+*.pt
+*.onnx
+
+# ---- Reinforcement Learning ----
+rl/checkpoints/
+rl/snapshots/
+rl/debug/
+
+# ---- Data ----
+data/
+datasets/
+*.csv
+*.jsonl
+*.zip
+*.tar
+*.gz
+*.npy
+*.npz
+
+# ---- Audio / Media ----
+*.wav
+*.mp3
+*.flac
+*.aiff
+*.ogg
+voice/
+recordings/
+tts_cache/
+
+# ---- Environment / Secrets ----
+.env
+.env.local
+.env.production
+.env.development
+credentials.json
+secrets.json
+token.json
+*.pem
+*.key
+*.crt
+
+# ---- Mac / System ----
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+__MACOSX/
+
+# ---- Build / Packaging ----
+build/
+dist/
+site/
+docs/_build/
+*.bak
+*.tmp
+*.old
+
+# ---- Notebooks / Scratch ----
+*.ipynb_checkpoints
+notebooks/.ipynb_checkpoints/
+scratch/
+drafts/
+
+# ---- Optional (if you run local Modal) ----
+.modal/
+.modal_cache/
+modal_logs/
+
+# ---- Optional Backup / External ----
+/Volumes/
+*.backup
+*.bak
+*.old
