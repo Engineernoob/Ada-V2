@@ -42,7 +42,7 @@ Examples:
     parser.add_argument(
         "--version", 
         action="version", 
-        version="Ada v2.0.0 - Phase 2"
+        version="Ada v3.0.0 - Phase 3: Long-Term Memory & Reflection"
     )
     
     parser.add_argument(
@@ -55,16 +55,16 @@ Examples:
     
     try:
         if args.test:
-            print("🧪 Running Ada v2.0 system tests...")
+            print("🧪 Running Ada v3.0 system tests...")
             run_system_tests()
         
         elif args.demo:
-            print("🎭 Running Ada v2.0 in demo mode...")
+            print("🎭 Running Ada v3.0 in demo mode...")
             run_demo_mode()
         
         else:
-            print("🤖 Starting Ada v2.0 - Personal AI Assistant")
-            print("=" * 50)
+            print("🤖 Starting Ada v3.0 - Personal AI Assistant with Long-Term Memory")
+            print("=" * 60)
             run_interactive_chat(debug=args.debug)
     
     except KeyboardInterrupt:
@@ -110,14 +110,36 @@ def run_interactive_chat(debug: bool = False):
 def run_demo_mode():
     """Run Ada in demonstration mode without external dependencies"""
     
-    print("🎭 Ada v2.0 Demo Mode")
-    print("=" * 40)
-    print("This is a demonstration of Ada's Phase 2 capabilities:")
+    print("🎭 Ada v3.0 Demo Mode - Phase 3: Long-Term Memory & Reflection")
+    print("=" * 60)
+    print("This is a demonstration of Ada's Phase 3 enhancements:")
+    print("- 🧠 Long-Term Memory (cross-session recall)")
+    print("- 🔮 Session Reflection (automatic analysis)")
     print("- 🎭 Persona System (4 different personalities)")
     print("- 🧠 Context Memory (remembers conversation)")
     print("- 🎯 Emotional Sentiment Analysis")
     print("- 💬 Enhanced Dialogue Management")
     print("- 🔄 Reinforcement Learning")
+    print()
+    
+    # Demo Phase 3 long-term memory
+    print("🧠 Long-Term Memory Demo:")
+    print("   User: 'I love programming in Python' (Session 1)")
+    print("   Ada: 'That's wonderful! Python is such a versatile language.'")
+    print("   💾 Stored in long-term memory")
+    print()
+    print("   User: 'What do I like to code?' (Session 2, next day)")
+    print("   Ada: 'I remember you mentioned loving Python programming!'")
+    print("   🔍 Retrieved from long-term memory")
+    print()
+    
+    # Demo Phase 3 reflection
+    print("🔮 Session Reflection Demo:")
+    print("   Session End → Automatic Analysis Generated:")
+    print("   📝 'Session contained 12 turns, average reward 0.8'")
+    print("   📈 'Sentiment trend: improving, user engagement high'")
+    print("   💡 'Primary topics: programming, AI, technology'")
+    print("   📊 'Session saved to reflection_2025-11-02.txt'")
     print()
     
     # Simulate persona switching demo
@@ -134,6 +156,13 @@ def run_demo_mode():
         elif persona == "analyst":
             print("   'Greetings. I'm Ada, your analytical assistant. What needs systematic analysis?'")
         print()
+    
+    print("🆕 NEW in Phase 3:")
+    print("   💾 Long-term memory persists across sessions")
+    print("   🔮 Automatic session reflections and insights")
+    print("   🧠 Semantic recall of past conversations")
+    print("   📊 Enhanced learning from interaction patterns")
+    print()
     
     # Simulate memory demo
     print("🧠 Memory System Demo:")

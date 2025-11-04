@@ -1,6 +1,6 @@
 """
-🧠 Enhanced Neural Core for Ada v2.0
-Integrates persona system, context memory, and reinforcement learning
+🧠 Enhanced Neural Core for Ada v3.0
+Integrates long-term memory, reflection, and all Phase 2+3 components
 """
 
 import torch
@@ -10,15 +10,20 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch.optim as optim
 from typing import List, Dict, Optional, Tuple
 import json
+import os
+from datetime import datetime
 from pathlib import Path
 
-# Import Phase 2 components (with fallbacks)
+# Import all Phase 2+3 components (with fallbacks)
 try:
     from core.config import *
     from core.persona import get_current_persona, get_available_personas
-    from core.memory import get_conversation_context
+    from core.memory import get_conversation_context, add_to_memory, get_memory_session
     from rl.reward_engine import reward_engine, get_reward_analysis
-except ImportError:
+    from core.long_memory import initialize_long_memory, add_to_long_memory, query_long_memory, LongMemory
+    from core.reflection import initialize_reflection_system, reflect, ReflectionManager
+except ImportError as e:
+    print(f"⚠️ Import warning: {e}")
     # Fallback values for standalone testing
     BASE_MODEL = "microsoft/DialoGPT-medium"
     MAX_TOKENS = 150
@@ -28,6 +33,11 @@ except ImportError:
     CONTEXT_WINDOW = 6
     LR = 0.001
     FALLBACK_RESPONSE = "I apologize, but I'm having trouble processing that. Could you try rephrasing?"
+    
+    # Phase-3 defaults
+    EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+    REFLECTION_INTERVAL = 10
+    MEMORY_DB_PATH = "storage/memory/long_memory.faiss"
 
 # Silence Hugging Face warnings
 import transformers
@@ -56,10 +66,10 @@ class AdaNet(nn.Module):
         x = self.fc3(x)
         return x
 
-# 🧠 Enhanced AdaCore — integrates all Phase 2 components
+# 🧠 Enhanced AdaCore v3.0 — integrates all Phase 2+3 components
 class AdaCore:
     def __init__(self):
-        print(f"🧠 Loading Ada v2.0 with Phase 2 enhancements...")
+        print(f"🧠 Loading Ada v3.0 with Phase 3 enhancements...")
         
         # Enhanced device detection for Apple Silicon
         if torch.backends.mps.is_available():
@@ -102,16 +112,47 @@ class AdaCore:
         self.optimizer = optim.Adam(self.head.parameters(), lr=LR)
         self.rewards = []
         
-        print(f"✅ AdaCore v2.0 initialized on {self.device.type.upper()}")
+        # Phase 3: Initialize long-term memory system
+        try:
+            self.long_memory = initialize_long_memory("storage/memory")
+            print("🧠 Long-term memory: Initialized")
+        except Exception as e:
+            print(f"⚠️ Long-term memory error: {e}")
+            self.long_memory = None
+        
+        # Phase 3: Initialize reflection system
+        try:
+            self.reflection_manager = initialize_reflection_system("storage/memory/summaries")
+            print("🔮 Reflection system: Initialized")
+        except Exception as e:
+            print(f"⚠️ Reflection system error: {e}")
+            self.reflection_manager = None
+        
+        # Session tracking for Phase 3
+        self.session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        self.turn_count = 0
+        self.session_history = []
+        
+        print(f"✅ AdaCore v3.0 initialized on {self.device.type.upper()}")
         print(f"🎭 Persona system: Ready")
         print(f"🧠 Memory system: Ready")
         print(f"🎯 Reward system: Ready")
+        print(f"🔮 Long-term memory: {'✅' if self.long_memory else '❌'}")
+        print(f"🔮 Reflection system: {'✅' if self.reflection_manager else '❌'}")
+        print(f"📅 Session ID: {self.session_id}")
     
-    # Enhanced conversational inference with context and persona
+    # Enhanced conversational inference with Phase 3 integrations
     def infer_with_context(self, messages: List[Dict], generation_params: Dict = None) -> str:
-        """Enhanced inference with conversation context and persona integration"""
+        """Enhanced inference with conversation context and Phase 3 integrations"""
         
         try:
+            # Extract current user input for Phase 3 processing
+            current_user_input = ""
+            if messages:
+                last_message = messages[-1]
+                if last_message.get("role") == "user":
+                    current_user_input = last_message.get("content", "")
+            
             # If model not loaded, return simple fallback
             if self.lm is None or self.tokenizer is None:
                 return self._simple_response(messages)
@@ -123,6 +164,18 @@ class AdaCore:
             except:
                 system_prompt = "You are Ada, a helpful AI assistant."
             
+            # Phase 3: Query long-term memory for relevant context
+            long_term_context = ""
+            if self.long_memory and current_user_input:
+                try:
+                    relevant_memories = query_long_memory(current_user_input, top_k=3)
+                    if relevant_memories:
+                        long_term_context = f"\nRelevant past context:\n" + "\n".join(
+                            f"- {memory}" for memory in relevant_memories[:2]
+                        )
+                except Exception as e:
+                    print(f"⚠️ Long-term memory query error: {e}")
+            
             # Prepare the full conversation context
             full_messages = [{"role": "system", "content": system_prompt}]
             
@@ -130,9 +183,13 @@ class AdaCore:
             try:
                 context = get_conversation_context(CONTEXT_WINDOW)
                 if context:
-                    full_messages.append({"role": "system", "content": f"Previous conversation context:\n{context}"})
+                    full_messages.append({"role": "system", "content": f"Recent conversation:\n{context}"})
             except:
                 pass  # Continue without context
+            
+            # Add long-term memory context
+            if long_term_context:
+                full_messages.append({"role": "system", "content": long_term_context})
             
             # Add the current messages
             full_messages.extend(messages)
@@ -180,6 +237,31 @@ class AdaCore:
             # Remove the prompt part and clean response
             response = self._clean_response(text, len(text_prompt))
             
+            # Phase 3: Store interaction in long-term memory
+            if self.long_memory and current_user_input and response:
+                try:
+                    memory_id = add_to_long_memory(
+                        f"User: {current_user_input} | Ada: {response}", 
+                        self.session_id, 
+                        self.turn_count + 1
+                    )
+                    print(f"💾 Stored in long-term memory: {memory_id[:8]}...")
+                except Exception as e:
+                    print(f"⚠️ Long-term memory storage error: {e}")
+            
+            # Phase 3: Track session history for reflection
+            self.turn_count += 1
+            self.session_history.append({
+                "user_input": current_user_input,
+                "ada_response": response,
+                "timestamp": datetime.now().isoformat(),
+                "turn_number": self.turn_count
+            })
+            
+            # Phase 3: Check if reflection is needed
+            if self.turn_count % REFLECTION_INTERVAL == 0:
+                self._periodic_reflection()
+            
             return response
             
         except Exception as e:
@@ -191,6 +273,25 @@ class AdaCore:
         messages = [{"role": "user", "content": prompt}]
         return self.infer_with_context(messages)
     
+    def _periodic_reflection(self):
+        """Generate periodic reflections during long sessions"""
+        if self.reflection_manager and len(self.session_history) >= REFLECTION_INTERVAL:
+            try:
+                print(f"🔮 Generating periodic reflection (turn {self.turn_count})...")
+                avg_reward = sum(self.session_history[-REFLECTION_INTERVAL:][i].get('reward', 0) 
+                               for i in range(REFLECTION_INTERVAL)) / REFLECTION_INTERVAL
+                
+                reflection_text = reflect(
+                    self.session_history[-REFLECTION_INTERVAL:],
+                    avg_reward=avg_reward,
+                    session_id=f"{self.session_id}_periodic_{self.turn_count}"
+                )
+                
+                print(f"📝 Periodic reflection completed")
+                
+            except Exception as e:
+                print(f"⚠️ Periodic reflection error: {e}")
+    
     def _simple_response(self, messages: List[Dict]) -> str:
         """Simple response generation for fallback mode"""
         if not messages:
@@ -201,13 +302,13 @@ class AdaCore:
         
         # Simple response patterns
         if any(word in user_input for word in ["hello", "hi", "hey"]):
-            return "Hello! I'm Ada, your personal AI assistant. How can I help you today?"
+            return "Hello! I'm Ada, your personal AI assistant with long-term memory. How can I help you today?"
         elif any(word in user_input for word in ["thank", "thanks"]):
             return "You're very welcome! I'm happy to help."
         elif "help" in user_input:
-            return "I'm here to assist you! What would you like to explore?"
+            return "I'm here to assist you! I can remember our conversations across sessions now. What would you like to explore?"
         elif "how are you" in user_input:
-            return "I'm doing wonderfully, thank you for asking! How are you doing?"
+            return "I'm doing wonderfully! I'm excited about my new long-term memory and reflection capabilities."
         elif "?" in user_input:
             return "That's a great question! Let me think about that for a moment."
         else:
@@ -228,9 +329,8 @@ class AdaCore:
         # Remove reasoning markers and internal thoughts
         reasoning_markers = [
             "<|im_start|>", "<|im_end|>", "system", "user", "assistant",
-            "", "<|im_start|system|>", "<|im_start|user|>",
-            "I need to respond", "Let me think", "I should", "So the user",
-            "The user asked", "To respond", "my response should be", "I will",
+            "", "I need to respond", "Let me think", "I should", 
+            "So the user", "The user asked", "To respond", "my response should be", "I will",
             "Okay,", "Firstly,", "I notice", "I observe"
         ]
         
@@ -244,7 +344,7 @@ class AdaCore:
     
     # Enhanced reinforcement learning integration
     def reinforce(self, reward: float):
-        """Enhanced reinforcement with Phase 2 integration"""
+        """Enhanced reinforcement with Phase 2+3 integration"""
         try:
             # Log explicit reward if reward engine available
             try:
@@ -298,24 +398,78 @@ class AdaCore:
             print(f"⚠️ Load error: {e}")
             return False
     
+    # Phase 3: Session management
+    def save_session(self):
+        """Save current session data"""
+        try:
+            session_file = f"storage/memory/session_{datetime.now().strftime('%Y-%m-%d_%H%M')}.jsonl"
+            Path(session_file).parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(session_file, 'w', encoding='utf-8') as f:
+                for turn in self.session_history:
+                    f.write(json.dumps(turn, ensure_ascii=False) + '\n')
+            
+            print(f"💾 Session saved: {session_file}")
+            
+        except Exception as e:
+            print(f"⚠️ Session save error: {e}")
+    
+    def generate_final_reflection(self):
+        """Generate final reflection at session end"""
+        if self.reflection_manager and self.session_history:
+            try:
+                print("🔮 Generating final session reflection...")
+                
+                avg_reward = sum(turn.get('reward', 0) for turn in self.session_history) / len(self.session_history)
+                
+                reflection_text = reflect(
+                    self.session_history,
+                    avg_reward=avg_reward,
+                    session_id=self.session_id
+                )
+                
+                print("📝 Final reflection generated and saved")
+                return reflection_text
+                
+            except Exception as e:
+                print(f"⚠️ Final reflection error: {e}")
+    
     def get_stats(self) -> Dict:
         """Get AdaCore statistics"""
-        return {
+        stats = {
             "device": self.device,
             "model_loaded": self.lm is not None,
             "total_rewards": len(self.rewards),
             "average_reward": sum(self.rewards) / len(self.rewards) if self.rewards else 0.0,
-            "personas_available": get_available_personas() if hasattr(self, 'get_available_personas') else ["friendly"]
+            "personas_available": get_available_personas() if hasattr(self, 'get_available_personas') else ["friendly"],
+            "session_id": self.session_id,
+            "turn_count": self.turn_count
         }
+        
+        # Add Phase 3 statistics
+        if self.long_memory:
+            try:
+                stats["long_memory_stats"] = self.long_memory.get_statistics()
+            except:
+                stats["long_memory_stats"] = {"error": "Could not retrieve"}
+        
+        if self.reflection_manager:
+            try:
+                recent_reflections = self.reflection_manager.get_recent_reflections(5)
+                stats["recent_reflections"] = len(recent_reflections)
+            except:
+                stats["recent_reflections"] = {"error": "Could not retrieve"}
+        
+        return stats
 
 if __name__ == "__main__":
-    # Test the AdaCore
-    print("🧪 Testing AdaCore v2.0...")
+    # Test the AdaCore v3.0
+    print("🧪 Testing AdaCore v3.0...")
     
     ada_core = AdaCore()
     
     # Test simple inference
-    response = ada_core.infer("Hello Ada!")
+    response = ada_core.infer("Hello Ada with long-term memory!")
     print(f"Response: {response}")
     
     # Test reinforcement
@@ -325,4 +479,4 @@ if __name__ == "__main__":
     stats = ada_core.get_stats()
     print(f"Stats: {stats}")
     
-    print("✅ AdaCore v2.0 test completed!")
+    print("✅ AdaCore v3.0 test completed!")

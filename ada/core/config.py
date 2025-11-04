@@ -191,15 +191,39 @@ MAX_REQUESTS_PER_MINUTE = 60
 MAX_REQUESTS_PER_HOUR = 1000
 
 # ====================================
+# Phase 3 Configuration - Long-Term Memory & Reflection
+# ====================================
+
+# Long-term memory database
+MEMORY_DB_PATH = "storage/memory/long_memory.faiss"
+EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+REFLECTION_INTERVAL = 10
+
+# Memory similarity thresholds
+MIN_MEMORY_RELEVANCE_SCORE = 0.1
+MAX_LONG_TERM_MEMORIES = 10000
+
+# Session persistence settings
+ENABLE_SESSION_PERSISTENCE = True
+SESSION_AUTO_SAVE = True
+SUMMARIES_DIR = "storage/memory/summaries"
+
+# Reflection settings
+REFLECTION_ENABLED = True
+REFLECTION_ON_SESSION_END = True
+PERIODIC_REFLECTIONS = True
+MAX_REFLECTION_HISTORY = 50
+
+# ====================================
 # Version and Metadata
 # ====================================
 
-ADA_VERSION = "2.0.0"
+ADA_VERSION = "3.0.0"
 ADA_BUILD_DATE = "2025-11-02"
-ADA_PHASE = "Phase 2"
+ADA_PHASE = "Phase 3"
 
 # API version for compatibility
-API_VERSION = "2.0"
+API_VERSION = "3.0"
 
 # ====================================
 # Utility Functions
