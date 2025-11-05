@@ -23,7 +23,18 @@ class DialogueManager:
         self.conversation_count = 0
         
         print("🤖 Initializing Ada Dialogue Manager...")
-        print("📝 Note: This is a simplified version - requires neural_core integration")
+        
+        # Try to initialize full AdaCore integration
+        try:
+            from core.neural_core import AdaCore
+            self.ada_core = AdaCore()
+            print("🧠 Neural core integration: ENABLED")
+        except ImportError as e:
+            print(f"⚠️ Neural core unavailable: {e}")
+            print("📝 Using simplified dialogue mode")
+        except Exception as e:
+            print(f"⚠️ Neural core error: {e}")
+            print("📝 Using simplified dialogue mode")
     
     def handle_user_input(self, user_input: str) -> Optional[str]:
         """Process user input and generate Ada's response"""
@@ -34,10 +45,22 @@ class DialogueManager:
         # Update conversation count
         self.conversation_count += 1
         
-        # Simple response generation for testing
+        # Use AdaCore for inference if available
+        if self.ada_core:
+            try:
+                response = self.ada_core.infer(user_input)
+                # Remove "Ada:" prefix if present
+                if response.startswith("Ada:"):
+                    response = response[4:].strip()
+                return response
+            except Exception as e:
+                print(f"⚠️ AdaCore inference error: {e}")
+                print("📝 Falling back to simple response")
+        
+        # Simple response generation for fallback/testing
         response = self._generate_simple_response(user_input)
         
-        return f"Ada: {response}"
+        return response
     
     def _generate_simple_response(self, user_input: str) -> str:
         """Generate simple response for testing"""
@@ -154,7 +177,9 @@ class DialogueManager:
                 response = self.handle_user_input(user_input)
                 
                 if response:
-                    print(f"🤖 {response}\n")
+                    # Add Ada prefix for display if not already present
+                    display_response = response if response.startswith("Ada:") else f"Ada: {response}"
+                    print(f"🤖 {display_response}\n")
                 
             except KeyboardInterrupt:
                 print("\n\n👋 Goodbye!")

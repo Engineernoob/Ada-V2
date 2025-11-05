@@ -2,6 +2,7 @@
 torch
 numpy
 transformers
+faiss-cpu
 
 # Data processing and utilities
 # sqlite3 is built into Python

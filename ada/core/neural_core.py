@@ -43,15 +43,19 @@ except ImportError as e:
 import transformers
 transformers.utils.logging.set_verbosity_error()
 
-# 🧩 AdaNet — trainable neural head (for reinforcement tuning)
+# 🧩 AdaNet v3 — Adaptive policy head (context-aware reinforcement learning)
 class AdaNet(nn.Module):
-    def __init__(self, input_size=512, hidden=256, output_size=512):
+    """
+    AdaNet v3 — Adaptive policy head.
+    Learns tone, style, and reward prediction from text embeddings.
+    """
+    def __init__(self, input_size=768, hidden1=512, hidden2=256, output_size=3, dropout=0.2):
         super().__init__()
-        self.fc1 = nn.Linear(input_size, hidden)
-        self.fc2 = nn.Linear(hidden, hidden)
-        self.fc3 = nn.Linear(hidden, output_size)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.1)
+        self.fc1 = nn.Linear(input_size, hidden1)
+        self.fc2 = nn.Linear(hidden1, hidden2)
+        self.fc3 = nn.Linear(hidden2, output_size)
+        self.dropout = nn.Dropout(dropout)
+        self.norm = nn.LayerNorm(hidden2)
         
         # Initialize weights
         nn.init.xavier_uniform_(self.fc1.weight)
@@ -59,12 +63,10 @@ class AdaNet(nn.Module):
         nn.init.xavier_uniform_(self.fc3.weight)
         
     def forward(self, x):
-        x = self.relu(self.fc1(x))
+        x = F.relu(self.fc1(x))
         x = self.dropout(x)
-        x = self.relu(self.fc2(x))
-        x = self.dropout(x)
-        x = self.fc3(x)
-        return x
+        x = self.norm(F.relu(self.fc2(x)))
+        return torch.tanh(self.fc3(x))   # [style, tone, reward_pred]
 
 # 🧠 Enhanced AdaCore v3.0 — integrates all Phase 2+3 components
 class AdaCore:
@@ -106,11 +108,21 @@ class AdaCore:
             self.lm = None
             self.tokenizer = None
         
-        # Initialize AdaNet for reinforcement learning
-        self.head = AdaNet()
+        # Initialize AdaNet v3 for reinforcement learning with semantic embeddings
+        from sentence_transformers import SentenceTransformer
+        from rl.reward_memory import RewardMemory
+        
+        self.embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        self.head = AdaNet(input_size=384)  # Match sentence-transformers dimension
         self.head.to(self.device)
-        self.optimizer = optim.Adam(self.head.parameters(), lr=LR)
+        self.optimizer = optim.AdamW(self.head.parameters(), lr=1e-4, betas=(0.9,0.99))
+        self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
         self.rewards = []
+        self.training_step = 0
+        
+        # Initialize RewardMemory buffer for AdaNet v3
+        self.reward_memory = RewardMemory(capacity=500)
+        print("🎯 RewardMemory buffer: Initialized")
         
         # Phase 3: Initialize long-term memory system
         try:
@@ -342,38 +354,105 @@ class AdaCore:
         
         return response
     
-    # Enhanced reinforcement learning integration
-    def reinforce(self, reward: float):
-        """Enhanced reinforcement with Phase 2+3 integration"""
+    # AdaNet v3: Multi-objective reinforcement learning with entropy regularization
+    def reinforce(self, prompt: str, response: str, reward: float):
+        """
+        Enhanced reinforcement with AdaNet v3 semantic learning.
+        Stores experiences in RewardMemory and trains AdaNet v3.
+        """
         try:
+            # Store experience in RewardMemory buffer
+            self.reward_memory.add(prompt, response, reward)
+            
             # Log explicit reward if reward engine available
             try:
-                reward_engine.log_explicit_reward("", "", reward)
+                reward_engine.log_explicit_reward(prompt, response, reward)
             except:
                 pass  # Continue without reward logging
             
             self.rewards.append(reward)
+            self.training_step += 1
             
-            # Convert reward to tensor
-            reward_tensor = torch.tensor(reward, dtype=torch.float32, device=self.device)
+            # Generate semantic embedding of the response for AdaNet v3 training
+            embedding = self.embedder.encode([response], convert_to_tensor=True).to(self.device)
+            # Detach and clone to ensure proper gradient computation
+            embedding = embedding.detach().clone().requires_grad_(True)
             
-            # Get prediction from AdaNet head
-            pred = torch.mean(torch.stack([p.mean() for p in self.head.parameters()]))
+            # Get AdaNet v3 output: [style, tone, reward_pred]
+            style, tone, reward_pred = self.head(embedding)[0]
             
-            # Compute loss (negative because we want to maximize reward)
-            loss = -reward_tensor * pred
+            # Multi-objective loss calculation
+            r = torch.tensor(reward, dtype=torch.float32, device=self.device)
             
-            # Backward pass
+            policy_loss = F.mse_loss(reward_pred, r)
+            entropy_loss = -0.01 * (torch.abs(style) + torch.abs(tone)).mean()
+            loss = policy_loss + entropy_loss
+            
+            # Backward pass with gradient clipping
             self.optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.head.parameters(), 1.0)
             self.optimizer.step()
+            
+            # Learning rate scheduling
+            self.scheduler.step()
             
             # Display reinforcement result
             emoji = "🌟" if reward > 0 else ("⚖️" if reward == 0 else "🚫")
-            print(f"{emoji} Reinforced with reward {reward:+.2f} | Loss {loss.item():.4f}")
+            print(f"{emoji} AdaNet v3 Reinforcement | Policy {policy_loss.item():.4f} | Entropy {entropy_loss.item():.4f}")
+            
+            # Periodic replay training
+            if self.training_step % 50 == 0:
+                self.replay_train()
             
         except Exception as e:
-            print(f"⚠️ Reinforcement error: {e}")
+            print(f"⚠️ AdaNet v3 Reinforcement error: {e}")
+    
+    def replay_train(self):
+        """
+        Replay training on past experiences to reinforce long-term trends.
+        Samples experiences from RewardMemory and trains AdaNet v3.
+        """
+        try:
+            if self.reward_memory.size() < 4:  # Need minimum experiences for training
+                return
+            
+            print("🔄 AdaNet v3 Replay Training...")
+            total_loss = 0.0
+            batch_size = 8
+            
+            # Sample experiences for replay training
+            experiences = self.reward_memory.sample(batch_size)
+            
+            for prompt, response, reward in experiences:
+                # Encode response text for semantic learning
+                embedding = self.embedder.encode([response], convert_to_tensor=True).to(self.device)
+                # Detach and clone to ensure proper gradient computation
+                embedding = embedding.detach().clone().requires_grad_(True)
+                
+                # Get AdaNet v3 prediction
+                style, tone, reward_pred = self.head(embedding)[0]
+                
+                # Compute loss
+                r = torch.tensor(reward, dtype=torch.float32, device=self.device)
+                loss = F.mse_loss(reward_pred, r)
+                
+                # Backward pass
+                self.optimizer.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.head.parameters(), 1.0)
+                self.optimizer.step()
+                
+                total_loss += loss.item()
+            
+            # Update scheduler
+            self.scheduler.step()
+            
+            avg_loss = total_loss / len(experiences)
+            print(f"🎯 Replay Training Complete | Avg Loss: {avg_loss:.4f} | Experiences: {len(experiences)}")
+            
+        except Exception as e:
+            print(f"⚠️ Replay training error: {e}")
     
     def save_brain(self, path="storage/models/adacore_head.pth"):
         """Save trained Ada neural head"""

@@ -255,6 +255,10 @@ def add_to_memory(user_input: str, ada_response: str) -> ConversationTurn:
     """Add conversation turn to memory"""
     return memory_manager.add_to_memory(user_input, ada_response)
 
+def get_memory_session():
+    """Get the current active memory session (for compatibility)"""
+    return memory_manager.get_current_session()
+
 def get_conversation_context(max_turns: int = 6) -> str:
     """Get conversation context for inference"""
     return memory_manager.get_context_for_inference(max_turns)
